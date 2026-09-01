@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teil–Teil–Ganzes · Tafeltool</title>
+<style>
+:root{
+  --bg:#f4f2ed;
+  --card:#ffffff;
+  --ink:#121212;
+  --muted:#6b6b6b;
+  --line:#d9d7d2;
+  --yellow:#f2cf22;
+  --red:#d63b31;
+  --green:#2f9b50;
+  --orange:#e27a1a;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:Arial,Helvetica,sans-serif;
+}
+main{
+  max-width:1280px;
+  margin:0 auto;
+  padding:18px;
+}
+header{
+  text-align:center;
+  margin-bottom:14px;
+}
+h1{
+  margin:0;
+  font-size:clamp(30px,4vw,52px);
+  line-height:1.05;
+}
+.subtitle{
+  margin:7px 0 0;
+  color:#444;
+  font-size:clamp(16px,1.8vw,20px);
+}
+.board{
+  background:var(--card);
+  border-radius:22px;
+  padding:20px;
+  box-shadow:0 4px 20px rgba(0,0,0,.07);
+}
+
+/* ---------- Darstellungen ---------- */
+.view-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:18px;
+  align-items:stretch;
+}
+.panel{
+  background:#fff;
+  border:2px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  min-width:0;
+}
+.panel h2{
+  text-align:center;
+  margin:0 0 14px;
+  font-size:clamp(21px,2vw,27px);
+}
+.hidden{display:none!important}
+
+.question{
+  text-align:center;
+  font-size:clamp(22px,2.4vw,30px);
+  font-weight:900;
+  margin:18px 0 2px;
+}
+
+/* ---------- Bausteine ---------- */
+.brick-track{
+  width:min(860px,96%);
+  margin:0 auto;
+}
+.brick-row{
+  display:flex;
+  justify-content:flex-start;
+  align-items:flex-end;
+  min-height:112px;
+  padding:30px 0 10px;
+  overflow:visible;
+}
+.brick{
+  --c:#ddd;
+  height:70px;
+  position:relative;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--c);
+  border:3px solid rgba(0,0,0,.38);
+  border-radius:7px;
+  box-shadow:
+    inset 0 7px 0 rgba(255,255,255,.22),
+    inset 0 -8px 0 rgba(0,0,0,.12),
+    0 5px 0 rgba(0,0,0,.17);
+  font-size:31px;
+  font-weight:900;
+}
+.studs{
+  position:absolute;
+  inset:auto 0 100% 0;
+  margin-bottom:-1px;
+  display:grid;
+  align-items:end;
+}
+.stud{
+  width:min(40px,72%);
+  height:22px;
+  justify-self:center;
+  background:var(--c);
+  border:3px solid rgba(0,0,0,.38);
+  border-bottom-width:2px;
+  border-radius:50% 50% 18% 18%;
+  box-shadow:inset 0 4px 0 rgba(255,255,255,.22);
+}
+.yellow{--c:var(--yellow)}
+.red{--c:var(--red);color:#fff}
+.green{--c:var(--green);color:#fff}
+
+.measure{
+  width:100%;
+  height:10px;
+  position:relative;
+  border-top:4px solid #222;
+}
+.measure:before,.measure:after{
+  content:"";
+  position:absolute;
+  top:-8px;
+  width:4px;
+  height:12px;
+  background:#222;
+}
+.measure:before{left:0}
+.measure:after{right:0}
+
+.zero-part{
+  flex:0 0 0;
+  height:70px;
+  position:relative;
+}
+.zero-label{
+  position:absolute;
+  left:2px;
+  bottom:18px;
+  font-size:28px;
+  font-weight:900;
+}
+
+/* ---------- einheitliche Leerstelle ---------- */
+.blank-line{
+  display:inline-block;
+  min-width:1.25em;
+  height:.9em;
+  border-bottom:5px solid currentColor;
+  vertical-align:.05em;
+}
+.brick .blank-line{min-width:44px}
+.ttg .blank-line{width:72px;margin-top:16px}
+.equation .blank-line{min-width:1.2em}
+
+/* ---------- TTG ---------- */
+.ttg{
+  width:min(680px,100%);
+  margin:0 auto;
+  border:4px solid var(--orange);
+  background:#fff;
+}
+.whole,.cell{
+  min-height:118px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+}
+.whole{border-bottom:4px solid var(--orange)}
+.parts{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+}
+.cell:first-child{border-right:4px solid var(--orange)}
+.name{
+  font-size:24px;
+  font-weight:900;
+}
+.num{
+  font-size:58px;
+  font-weight:900;
+  line-height:1;
+  margin-top:6px;
+}
+
+/* ---------- Rechnung ---------- */
+.equation{
+  text-align:center;
+  font-size:clamp(44px,6vw,74px);
+  font-weight:900;
+  padding:28px 6px;
+  white-space:nowrap;
+}
+
+/* ---------- Lehrerbereich ---------- */
+.teacher-drawer{
+  margin:18px auto 0;
+  border:2px solid var(--line);
+  border-radius:16px;
+  background:rgba(255,255,255,.98);
+  overflow:hidden;
+  max-width:1120px;
+  transition:max-height .22s ease, opacity .18s ease, margin .22s ease, border-width .22s ease;
+}
+.teacher-drawer.collapsed{
+  max-height:0;
+  opacity:0;
+  margin-top:0;
+  border-width:0;
+}
+.teacher-inner{
+  padding:10px;
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.group{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  padding:5px 7px;
+  border:1px solid #ddd;
+  border-radius:11px;
+  background:#fafafa;
+}
+.group-label{
+  font-size:13px;
+  font-weight:900;
+  color:#555;
+  margin-right:2px;
+}
+button{
+  border:2px solid #222;
+  background:#fff;
+  border-radius:10px;
+  padding:8px 11px;
+  font-size:16px;
+  font-weight:800;
+  cursor:pointer;
+}
+button:hover{background:#efefef}
+button.active{
+  background:#111;
+  color:#fff;
+}
+button.active:hover{background:#333}
+.value{
+  min-width:78px;
+  text-align:center;
+  font-size:18px;
+  font-weight:900;
+}
+.teacher-note{
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  padding:0 10px 10px;
+}
+
+/* der einzige sichtbare Knopf im Präsentationsmodus */
+.drawer-toggle{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:30;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  padding:0;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(0,0,0,.18);
+  opacity:.28;
+  font-size:21px;
+}
+.drawer-toggle:hover,
+.drawer-toggle:focus-visible{opacity:1}
+
+/* ---------- Präsentationsmodus ---------- */
+body.presentation{
+  background:#fff;
+}
+body.presentation main{
+  max-width:none;
+  padding:10px;
+}
+body.presentation header{
+  display:none;
+}
+body.presentation .board{
+  box-shadow:none;
+  border-radius:0;
+  padding:8px;
+}
+body.presentation .panel{
+  border-color:#e8e8e8;
+}
+body.presentation .question{
+  margin-top:12px;
+}
+
+/* ---------- responsive ---------- */
+@media(min-width:980px){
+  .view-grid.multi{grid-template-columns:repeat(2,1fr)}
+  .view-grid.multi.three{grid-template-columns:repeat(3,1fr)}
+  .view-grid.multi.three .panel{padding:12px}
+  .view-grid.multi.three .brick-row{min-height:92px;padding-top:24px}
+  .view-grid.multi.three .brick{height:56px;font-size:25px}
+  .view-grid.multi.three .stud{height:17px;width:min(30px,70%)}
+  .view-grid.multi.three .zero-part{height:56px}
+  .view-grid.multi.three .zero-label{font-size:24px;bottom:13px}
+  .view-grid.multi.three .whole,
+  .view-grid.multi.three .cell{min-height:98px}
+  .view-grid.multi.three .num{font-size:48px}
+  .view-grid.multi.three .equation{font-size:clamp(38px,4vw,58px)}
+}
+@media(max-width:760px){
+  main{padding:9px}
+  .board{padding:10px}
+  .panel{padding:10px}
+  .brick{height:58px;font-size:26px}
+  .stud{height:17px;width:min(27px,70%)}
+  .brick-row{min-height:96px;padding-top:24px}
+  .zero-part{height:58px}
+  .zero-label{font-size:24px;bottom:13px}
+}
+</style>
+</head>
+<body>
+
+<button id="drawerToggle" class="drawer-toggle" title="Lehrerbereich ein-/ausblenden" aria-label="Lehrerbereich ein-/ausblenden">⚙</button>
+
+<main>
+<header>
+  <h1>Teil – Teil – Ganzes</h1>
+  <p class="subtitle">Eine Beziehung in verschiedenen Darstellungen</p>
+</header>
+
+<section class="board">
+  <div id="views" class="view-grid">
+
+    <section id="legoPanel" class="panel">
+      <h2>Bausteine</h2>
+
+      <div class="brick-track">
+        <div class="brick-row" id="wholeRow"></div>
+        <div class="measure"></div>
+      </div>
+
+      <div class="brick-track">
+        <div class="brick-row" id="partsRow"></div>
+        <div class="measure"></div>
+      </div>
+    </section>
+
+    <section id="ttgPanel" class="panel hidden">
+      <h2>Teil–Teil–Ganzes</h2>
+      <div class="ttg">
+        <div class="whole">
+          <div class="name">Ganzes</div>
+          <div id="wholeTTG"></div>
+        </div>
+        <div class="parts">
+          <div class="cell">
+            <div class="name">Teil</div>
+            <div id="leftTTG"></div>
+          </div>
+          <div class="cell">
+            <div class="name">Teil</div>
+            <div id="rightTTG"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="eqPanel" class="panel hidden">
+      <h2>Rechenaufgabe</h2>
+      <div class="equation" id="equation"></div>
+    </section>
+
+  </div>
+
+  <div id="question" class="question">Was ist das Ganze? Was sind die Teile?</div>
+
+  <section id="teacherDrawer" class="teacher-drawer">
+    <div class="teacher-inner">
+
+      <div class="group">
+        <span class="group-label">Ganzes</span>
+        <button id="wholeMinus">−</button>
+        <span id="wholeValue" class="value">8</span>
+        <button id="wholePlus">+</button>
+      </div>
+
+      <div class="group">
+        <span class="group-label">1. Teil</span>
+        <button id="partMinus">−</button>
+        <span class="value"><span id="leftValue">4</span> + <span id="rightValue">4</span></span>
+        <button id="partPlus">+</button>
+      </div>
+
+      <div class="group">
+        <span class="group-label">Darstellung</span>
+        <button id="legoBtn" class="active">Bausteine</button>
+        <button id="ttgBtn">TTG</button>
+        <button id="eqBtn">Rechnung</button>
+      </div>
+
+      <div class="group">
+        <span class="group-label">Gesucht</span>
+        <button data-mask="none" class="maskBtn active">nichts</button>
+        <button data-mask="whole" class="maskBtn">Ganzes</button>
+        <button data-mask="left" class="maskBtn">Teil 1</button>
+        <button data-mask="right" class="maskBtn">Teil 2</button>
+      </div>
+
+      <div class="group">
+        <button id="numbersBtn">Zahlen ausblenden</button>
+        <button id="presentationBtn">Präsentation</button>
+        <button id="reset">Neu</button>
+        <button id="full">⛶</button>
+      </div>
+
+    </div>
+    <div class="teacher-note">
+      Tipp: gewünschte Darstellungen wählen und dann den Lehrerbereich über ⚙ einklappen.
+    </div>
+  </section>
+</section>
+</main>
+
+<script>
+let whole=8;
+let left=4;
+let mask='none';
+let numbers=true;
+
+const $=id=>document.getElementById(id);
+
+function blank(){
+  const s=document.createElement('span');
+  s.className='blank-line';
+  return s;
+}
+
+function makeBrick(n,cls,isMasked){
+  if(n===0){
+    const z=document.createElement('div');
+    z.className='zero-part';
+    const label=document.createElement('div');
+    label.className='zero-label';
+
+    if(isMasked) label.appendChild(blank());
+    else{
+      label.textContent='0';
+      label.style.visibility=numbers?'visible':'hidden';
+    }
+    z.appendChild(label);
+    return z;
+  }
+
+  const b=document.createElement('div');
+  b.className='brick '+cls;
+  b.style.width=(n/whole*100)+'%';
+
+  if(isMasked){
+    b.appendChild(blank());
+  }else{
+    const label=document.createElement('span');
+    label.textContent=n;
+    label.style.visibility=numbers?'visible':'hidden';
+    b.appendChild(label);
+  }
+
+  const studs=document.createElement('div');
+  studs.className='studs';
+  studs.style.gridTemplateColumns=`repeat(${n},1fr)`;
+
+  for(let i=0;i<n;i++){
+    const s=document.createElement('div');
+    s.className='stud';
+    studs.appendChild(s);
+  }
+
+  b.appendChild(studs);
+  return b;
+}
+
+function ttgValue(n,isMasked){
+  if(isMasked) return blank();
+
+  const d=document.createElement('div');
+  d.className='num';
+  d.textContent=n;
+  d.style.visibility=numbers?'visible':'hidden';
+  return d;
+}
+
+function eqValue(name,n){
+  return mask===name ? '<span class="blank-line"></span>' : String(n);
+}
+
+function render(){
+  if(left>whole) left=whole;
+  if(left<0) left=0;
+
+  const right=whole-left;
+
+  $('wholeRow').innerHTML='';
+  $('wholeRow').appendChild(makeBrick(whole,'yellow',mask==='whole'));
+
+  $('partsRow').innerHTML='';
+  $('partsRow').appendChild(makeBrick(left,'red',mask==='left'));
+  $('partsRow').appendChild(makeBrick(right,'green',mask==='right'));
+
+  $('wholeTTG').innerHTML='';
+  $('wholeTTG').appendChild(ttgValue(whole,mask==='whole'));
+
+  $('leftTTG').innerHTML='';
+  $('leftTTG').appendChild(ttgValue(left,mask==='left'));
+
+  $('rightTTG').innerHTML='';
+  $('rightTTG').appendChild(ttgValue(right,mask==='right'));
+
+  $('equation').innerHTML=
+    `${eqValue('left',left)} + ${eqValue('right',right)} = ${eqValue('whole',whole)}`;
+
+  $('wholeValue').textContent=whole;
+  $('leftValue').textContent=left;
+  $('rightValue').textContent=right;
+
+  $('numbersBtn').textContent=numbers?'Zahlen ausblenden':'Zahlen einblenden';
+
+  if(mask==='none'){
+    $('question').textContent='Was ist das Ganze? Was sind die Teile?';
+  }else if(mask==='whole'){
+    $('question').textContent='Wie groß ist das Ganze?';
+  }else{
+    $('question').textContent='Welcher Teil fehlt?';
+  }
+}
+
+function updateGrid(){
+  const visible=[...document.querySelectorAll('.panel')]
+    .filter(p=>!p.classList.contains('hidden')).length;
+
+  $('views').classList.toggle('multi',visible>1);
+  $('views').classList.toggle('three',visible===3);
+}
+
+function togglePanel(panel,btn){
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active',!panel.classList.contains('hidden'));
+  updateGrid();
+}
+
+$('wholeMinus').onclick=()=>{
+  if(whole>1){
+    whole--;
+    if(left>whole) left=whole;
+    render();
+  }
+};
+$('wholePlus').onclick=()=>{
+  if(whole<20){
+    whole++;
+    render();
+  }
+};
+
+$('partMinus').onclick=()=>{
+  if(left>0){
+    left--;
+    render();
+  }
+};
+$('partPlus').onclick=()=>{
+  if(left<whole){
+    left++;
+    render();
+  }
+};
+
+$('legoBtn').onclick=()=>togglePanel($('legoPanel'),$('legoBtn'));
+$('ttgBtn').onclick=()=>togglePanel($('ttgPanel'),$('ttgBtn'));
+$('eqBtn').onclick=()=>togglePanel($('eqPanel'),$('eqBtn'));
+
+document.querySelectorAll('.maskBtn').forEach(btn=>{
+  btn.onclick=()=>{
+    mask=btn.dataset.mask;
+    document.querySelectorAll('.maskBtn').forEach(b=>{
+      b.classList.toggle('active',b===btn);
+    });
+    render();
+  };
+});
+
+$('numbersBtn').onclick=()=>{
+  numbers=!numbers;
+  render();
+};
+
+$('drawerToggle').onclick=()=>{
+  $('teacherDrawer').classList.toggle('collapsed');
+};
+
+$('presentationBtn').onclick=()=>{
+  document.body.classList.toggle('presentation');
+  $('teacherDrawer').classList.add('collapsed');
+};
+
+$('reset').onclick=()=>{
+  whole=8;
+  left=4;
+  mask='none';
+  numbers=true;
+
+  $('legoPanel').classList.remove('hidden');
+  $('ttgPanel').classList.add('hidden');
+  $('eqPanel').classList.add('hidden');
+
+  $('legoBtn').classList.add('active');
+  $('ttgBtn').classList.remove('active');
+  $('eqBtn').classList.remove('active');
+
+  document.querySelectorAll('.maskBtn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.mask==='none');
+  });
+
+  document.body.classList.remove('presentation');
+  $('teacherDrawer').classList.remove('collapsed');
+
+  updateGrid();
+  render();
+};
+
+$('full').onclick=async()=>{
+  try{
+    if(!document.fullscreenElement){
+      await document.documentElement.requestFullscreen();
+    }else{
+      await document.exitFullscreen();
+    }
+  }catch(e){}
+};
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'&&left>0){
+    left--;
+    render();
+  }
+  if(e.key==='ArrowRight'&&left<whole){
+    left++;
+    render();
+  }
+  if(e.key.toLowerCase()==='h'){
+    $('teacherDrawer').classList.toggle('collapsed');
+  }
+});
+
+updateGrid();
+render();
+</script>
+</body>
+</html>
